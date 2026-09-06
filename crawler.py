@@ -9,9 +9,17 @@ import sys
 from collections import deque
 from urllib.parse import urldefrag, urljoin, urlparse
 
-from playwright.sync_api import Error as PlaywrightError
-from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
-from playwright.sync_api import sync_playwright
+try:
+    from playwright.sync_api import Error as PlaywrightError
+    from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
+    from playwright.sync_api import sync_playwright
+    PLAYWRIGHT_IMPORT_ERROR = ""
+except ModuleNotFoundError as error:
+    # Keep the Streamlit interface available so it can show a useful setup error.
+    sync_playwright = None
+    PlaywrightError = Exception
+    PlaywrightTimeoutError = TimeoutError
+    PLAYWRIGHT_IMPORT_ERROR = str(error)
 
 
 MAX_SCREENSHOT_HEIGHT = 6000
@@ -148,6 +156,11 @@ def _collect_page(page, url: str, depth: int, expand_dynamic: bool) -> dict:
 
 def _install_browser_if_needed() -> None:
     """Streamlit Community Cloud may not have the Playwright browser cache yet."""
+    if sync_playwright is None:
+        raise RuntimeError(
+            "Не установлен Playwright. Добавьте requirements.txt в корень GitHub-репозитория "
+            "рядом с app.py и перезапустите приложение."
+        ) from ModuleNotFoundError(PLAYWRIGHT_IMPORT_ERROR)
     with sync_playwright() as playwright:
         executable = playwright.chromium.executable_path
     if os.path.exists(executable):
